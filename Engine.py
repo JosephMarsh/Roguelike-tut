@@ -1,81 +1,41 @@
-# Joseph Marsh
-from html import entities
-from pickle import FALSE
-from re import S
-from xml.dom.minidom import Entity
-import tcod as libtcod 
-import sys
-import os
-import glob
+from typing import Set, Iterable, Any
 
-#append the path to the currently executed python file 
-os.environ["path"] = os.path.dirname(sys.executable) + ";" + os.environ["path"]
+from tcod.context import Context
+from tcod.console import Console
 
-#import key handelers
-from data.input_handlers import handle_keys
+from actions import EscapeAction, MovementAction
 from entity import Entity
-from render_functions import clear_all, render_all
+from game_map import GameMap
+from input_handlers import EventHandler
 
-DATA_FOLDER = 'data'
-FONT_FOLDER = 'data\\font'
-FONT_FILE = os.path.join(FONT_FOLDER,"dejavu10x10_gs_tc.png")
 
-def main():
-    screen_width = 80
-    screen_hight = 50
+class Engine:
+    def __init__(self, entities: Set[Entity], event_handler: EventHandler, game_map: GameMap, player: Entity):
+        self.entities = entities
+        self.event_handler = event_handler
+        self.game_map = game_map
+        self.player = player
 
-    #initialize player location
-    player = Entity(int(screen_width / 2 ), int(screen_hight / 2 ), '@', libtcod.blue )
-    npc = Entity(int(screen_width / 2 - 5 ), int(screen_hight / 2 ), 'g', libtcod.red )
-    entities = [npc, player]
+    def handle_events(self, events: Iterable[Any]) -> None:
+        for event in events:
+            action = self.event_handler.dispatch(event)
 
-    #allows import font and allow changing color of font
-    libtcod.console_set_custom_font( FONT_FILE, libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD )
-    #set console dimentions and title for the console and set full screen to false 
-    libtcod.console_init_root(screen_width, screen_hight, "Anubit Fire libtcod tutorial revised", False)
-    #create a new console 
-    con = libtcod.console_new(screen_width, screen_hight)
+            if action is None:
+                continue
 
-    key = libtcod.Key()
-    mouse = libtcod.Mouse()
+            if isinstance(action, MovementAction):
+                if self.game_map.tiles["walkable"][self.player.x + action.dx, self.player.y + action.dy]:
+                    self.player.move(dx = action.dx, dy = action.dy)
 
-    #Keeps console open until player quits the game
-    while not libtcod.console_is_window_closed ():
-        #check for key or mouse press events
-        libtcod.sys_check_for_event( libtcod.EVENT_KEY_PRESS, key, mouse )
+            elif isinstance(action, EscapeAction):
+                raise SystemExit()
 
-        #set default forground color to white
-        #libtcod.console_set_default_foreground( con, libtcod.white )
-        #prints the innitial charactor for player position
-        #libtcod.console_put_char( con, player.x, player.y, '@', libtcod.BKGND_NONE )
-        #allow changing console before the next fram is rendered
-        #libtcod.console_blit(con, 0, 0, screen_width, screen_hight, 0, 0, 0 )
+    def render(self, console: Console, context: Context) -> None:
+        self.game_map.render(console)
 
-        render_all(con, entities, screen_width, screen_hight)
+        for entity in self.entities:
+            console.print(entity.x, entity.y, entity.char, fg = entity.color)
 
-        #display current frame
-        libtcod.console_flush()
-        
-        #prints the innitial charactor for player position
-        #libtcod.console_put_char( con, player.x, player.y, ' ', libtcod.BKGND_NONE )
+        context.present(console)
 
-        clear_all(con, entities)
-
-        action = handle_keys(key)
-        move = action.get("move")
-        exit = action.get("exit")
-        fullscreen = action.get("fullscreen")
-
-        if move:
-            dx, dy = move
-            player.move(dx, dy)
-
-        if fullscreen:
-            libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen() )
-
-        #exits app if player presses escape.
-        if exit:
-            return True
-
-if __name__ == "__main__":
-    main()
+        console.clear()
