@@ -1,6 +1,8 @@
 # Joseph Marsh
+from html import entities
 from pickle import FALSE
 from re import S
+from xml.dom.minidom import Entity
 import tcod as libtcod 
 import sys
 import os
@@ -11,6 +13,8 @@ os.environ["path"] = os.path.dirname(sys.executable) + ";" + os.environ["path"]
 
 #import key handelers
 from data.input_handlers import handle_keys
+from entity import Entity
+from render_functions import clear_all, render_all
 
 DATA_FOLDER = 'data'
 FONT_FOLDER = 'data\\font'
@@ -21,8 +25,9 @@ def main():
     screen_hight = 50
 
     #initialize player location
-    player_x = int( screen_width / 2 )
-    player_y = int( screen_hight / 2 )
+    player = Entity(int(screen_width / 2 ), int(screen_hight / 2 ), '@', libtcod.blue )
+    npc = Entity(int(screen_width / 2 - 5 ), int(screen_hight / 2 ), 'g', libtcod.red )
+    entities = [npc, player]
 
     #allows import font and allow changing color of font
     libtcod.console_set_custom_font( FONT_FILE, libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD )
@@ -40,16 +45,21 @@ def main():
         libtcod.sys_check_for_event( libtcod.EVENT_KEY_PRESS, key, mouse )
 
         #set default forground color to white
-        libtcod.console_set_default_foreground( con, libtcod.white )
+        #libtcod.console_set_default_foreground( con, libtcod.white )
         #prints the innitial charactor for player position
-        libtcod.console_put_char( con, player_x, player_y, '@', libtcod.BKGND_NONE )
+        #libtcod.console_put_char( con, player.x, player.y, '@', libtcod.BKGND_NONE )
         #allow changing console before the next fram is rendered
-        libtcod.console_blit(con, 0, 0, screen_width, screen_hight, 0, 0, 0 )
+        #libtcod.console_blit(con, 0, 0, screen_width, screen_hight, 0, 0, 0 )
+
+        render_all(con, entities, screen_width, screen_hight)
+
         #display current frame
         libtcod.console_flush()
         
         #prints the innitial charactor for player position
-        libtcod.console_put_char( con, player_x, player_y, ' ', libtcod.BKGND_NONE )
+        #libtcod.console_put_char( con, player.x, player.y, ' ', libtcod.BKGND_NONE )
+
+        clear_all(con, entities)
 
         action = handle_keys(key)
         move = action.get("move")
@@ -58,8 +68,7 @@ def main():
 
         if move:
             dx, dy = move
-            player_x += dx
-            player_y += dy
+            player.move(dx, dy)
 
         if fullscreen:
             libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen() )
